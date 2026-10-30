@@ -28,6 +28,13 @@ define hdr
 	@printf '\n$(C_HDR)==> %s$(C_OFF)\n' "$(1)"
 endef
 
+# Targets here are ordered steps, not independent work: `test` runs the unit
+# suite and then the functional suites, which bind TCP ports and share the
+# generated corpus. Under `make -j` they would overlap and collide, so this
+# makefile stays serial. Recursive sub-makes still parallelise, which is where
+# the compile time actually is.
+.NOTPARALLEL:
+
 .PHONY: all build test check clean distclean dataset demo-dataset \
         unit functional sanitizers fuzz bench docker help $(IMPLS)
 

@@ -21,7 +21,9 @@
  * Returns the fd, or -1 with errno set (and the reason already logged). */
 int net_listen(uint16_t port, int backlog);
 
-/* Connect to ip:port, giving up after NET_CONNECT_TIMEOUT_MS.
+/* Connect to host:port, giving up after NET_CONNECT_TIMEOUT_MS.
+ * `host` may be a dotted-quad address or a DNS name - names matter because
+ * container and lab peers are addressed by name, not by literal address.
  * Returns the fd, or -1 with errno set (ETIMEDOUT if the deadline passed).
  *
  * A bounded connect matters more than it looks.  A host that REFUSES a
@@ -31,10 +33,12 @@ int net_listen(uint16_t port, int backlog);
  * schedule, which is north of two minutes on Linux.  A client whose whole
  * purpose is to retry quickly cannot afford to be stuck there. */
 #define NET_CONNECT_TIMEOUT_MS 10000
-int net_connect(const char *ip, uint16_t port);
+int net_connect(const char *host, uint16_t port);
 
-/* Same, with an explicit deadline in milliseconds; <= 0 means "block". */
-int net_connect_timeout(const char *ip, uint16_t port, int timeout_ms);
+/* Same, with an explicit deadline in milliseconds; <= 0 means "block".
+ * The deadline covers the whole call, so a name resolving to several
+ * addresses cannot multiply the caller's timeout. */
+int net_connect_timeout(const char *host, uint16_t port, int timeout_ms);
 
 /* Socket options.  Each returns 0 on success, -1 on failure (already logged).
  * All are optional in the sense that the protocol is correct without them. */

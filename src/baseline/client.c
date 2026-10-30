@@ -1,7 +1,7 @@
 /*
  * baseline/client.c - fetches every file of one topic and writes it to disk.
  *
- * Usage:  ./client <server_ip> <server_port> <topic> <output_dir> [options]
+ * Usage:  ./client <server_host> <server_port> <topic> <output_dir> [options]
  *         Files are written to <output_dir>/<topic>/
  *
  * HOW THIS WORKS
@@ -283,7 +283,7 @@ static int receive_topic(int fd, const char *topic, const char *outdir,
 static void usage(const char *argv0, const opt_spec_t *specs, size_t n)
 {
     fprintf(stderr,
-        "usage: %s <server_ip> <server_port> <topic> <output_dir> [options]\n"
+        "usage: %s <server_host> <server_port> <topic> <output_dir> [options]\n"
         "\n"
         "  files are written to <output_dir>/<topic>/\n"
         "\n"

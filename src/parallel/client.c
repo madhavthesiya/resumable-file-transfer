@@ -2,7 +2,7 @@
  * parallel/client.c - fetches a topic over K parallel TCP
  *                                 connections, each independently resumable.
  *
- * Usage:  ./client <server_ip> <server_port> <topic> <output_dir> [K] [options]
+ * Usage:  ./client <server_host> <server_port> <topic> <output_dir> [K] [options]
  *         K defaults to 4, so the mandatory four-argument form works unchanged.
  *         Files are written to <output_dir>/<topic>/
  *
@@ -572,7 +572,7 @@ static uint32_t verify_files(shared_t *sh, uint32_t *ok_out, double *secs)
 static void usage(const char *argv0, const opt_spec_t *specs, size_t n)
 {
     fprintf(stderr,
-        "usage: %s <server_ip> <server_port> <topic> <output_dir> [K] [options]\n"
+        "usage: %s <server_host> <server_port> <topic> <output_dir> [K] [options]\n"
         "\n"
         "  files are written to <output_dir>/<topic>/\n"
         "  K is the number of parallel connections (optional, default %d)\n"

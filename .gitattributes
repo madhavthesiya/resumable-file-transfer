@@ -1,0 +1,40 @@
+# Line endings are normalised to LF in the repository and checked out as LF
+# everywhere, including Windows.
+#
+# This is not cosmetic. The shell scripts carry a `#!/bin/bash` shebang, and a
+# CRLF checkout turns that into `#!/bin/bash\r`, which the kernel reads as a
+# request for an interpreter that does not exist:
+#
+#     ./tests/test_baseline.sh: /bin/bash^M: bad interpreter
+#
+# Git on Windows defaults to core.autocrlf=true, so without this file a clone
+# on Windows produces a tree whose scripts cannot run on Linux or in the
+# container - and the failure message points at bash rather than at the cause.
+
+*               text=auto eol=lf
+
+# Explicit for everything that is executed or compiled, so the intent survives
+# someone changing their global settings.
+*.sh            text eol=lf
+*.py            text eol=lf
+*.c             text eol=lf
+*.h             text eol=lf
+*.md            text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.csv           text eol=lf
+*.txt           text eol=lf
+Makefile        text eol=lf
+Dockerfile      text eol=lf
+.gitignore      text eol=lf
+.gitattributes  text eol=lf
+
+# Never touched: byte-for-byte as committed.
+*.pdf           binary
+*.png           binary
+*.zip           binary
+*.bin           binary
+
+# Diff hunks get a useful function name in the header for C sources.
+*.c             diff=cpp
+*.h             diff=cpp

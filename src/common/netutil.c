@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <netinet/tcp.h>
 #include <poll.h>
 #include <stdio.h>
@@ -44,28 +45,22 @@ int net_listen(uint16_t port, int backlog)
     return fd;
 }
 
-int net_connect(const char *ip, uint16_t port)
+int net_connect(const char *host, uint16_t port)
 {
-    return net_connect_timeout(ip, port, NET_CONNECT_TIMEOUT_MS);
+    return net_connect_timeout(host, port, NET_CONNECT_TIMEOUT_MS);
 }
 
-int net_connect_timeout(const char *ip, uint16_t port, int timeout_ms)
+/* One bounded connect attempt against one resolved address.  Returns the fd,
+ * or -1 with errno set; `deadline` is an absolute mono_now() value, or 0 to
+ * block indefinitely. */
+static int connect_one(const struct sockaddr *sa, socklen_t salen, double deadline)
 {
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof addr);
-    addr.sin_family = AF_INET;
-    addr.sin_port   = htons(port);
-    if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1) {
-        log_error("not a valid IPv4 address: %s", ip);
-        errno = EINVAL;
-        return -1;
-    }
-
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    int fd = socket(sa->sa_family, SOCK_STREAM, 0);
     if (fd < 0) {
         log_errno(LOG_ERROR, "socket");
         return -1;
     }
+    const int bounded = deadline > 0;        /* 0 means block indefinitely     */
 
     /* The connect is driven non-blocking so the wait can be bounded.  Doing it
      * this way also sidesteps a trap in the blocking form: when connect() is
@@ -73,20 +68,20 @@ int net_connect_timeout(const char *ip, uint16_t port, int timeout_ms)
      * calling it again returns EALREADY rather than retrying - looping on
      * EINTR around a blocking connect() is a bug, not a fix.  poll() has no
      * such quirk; it is simply restarted against the remaining deadline. */
-    if (timeout_ms > 0 && net_set_nonblock(fd, 1) < 0) {
+    if (bounded && net_set_nonblock(fd, 1) < 0) {
         close(fd);
         return -1;
     }
 
     int rc;
     do {
-        rc = connect(fd, (struct sockaddr *)&addr, sizeof addr);
-    } while (rc < 0 && errno == EINTR && timeout_ms <= 0);
+        rc = connect(fd, sa, salen);
+    } while (rc < 0 && errno == EINTR && !bounded);
 
     if (rc == 0)
         goto connected;                       /* loopback usually lands here */
 
-    if (timeout_ms <= 0 || (errno != EINPROGRESS && errno != EINTR)) {
+    if (!bounded || (errno != EINPROGRESS && errno != EINTR)) {
         int saved = errno;                    /* a refused connect is often  */
         close(fd);                            /* expected; the caller logs   */
         errno = saved;
@@ -96,7 +91,6 @@ int net_connect_timeout(const char *ip, uint16_t port, int timeout_ms)
     /* Wait for the handshake, re-arming poll() against the original deadline
      * so that signals cannot extend the total wait. */
     {
-        double deadline = mono_now() + timeout_ms / 1000.0;
         for (;;) {
             double left = deadline - mono_now();
             if (left <= 0) {
@@ -133,11 +127,62 @@ int net_connect_timeout(const char *ip, uint16_t port, int timeout_ms)
 connected:
     /* Hand back a blocking socket: every caller expects one, and the epoll
      * loop in the parallel server sets O_NONBLOCK itself when it wants it. */
-    if (timeout_ms > 0 && net_set_nonblock(fd, 0) < 0) {
+    if (bounded && net_set_nonblock(fd, 0) < 0) {
         close(fd);
         return -1;
     }
     return fd;
+}
+
+int net_connect_timeout(const char *host, uint16_t port, int timeout_ms)
+{
+    /* getaddrinfo rather than inet_pton, so `host` may be a name as well as a
+     * dotted quad.  That is not decoration: under Docker Compose, and on any
+     * network with DNS, peers are addressed by name, and a client that only
+     * accepts a literal address cannot reach them at all.
+     *
+     * The family is pinned to AF_INET because net_listen() binds an IPv4
+     * socket; offering to resolve AAAA records would only produce addresses
+     * this server never listens on. */
+    char portstr[16];
+    snprintf(portstr, sizeof portstr, "%u", (unsigned)port);
+
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family   = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = IPPROTO_TCP;
+
+    struct addrinfo *res = NULL;
+    int gai = getaddrinfo(host, portstr, &hints, &res);
+    if (gai != 0) {
+        log_error("cannot resolve '%s': %s", host,
+                  gai == EAI_SYSTEM ? strerror(errno) : gai_strerror(gai));
+        errno = (gai == EAI_SYSTEM) ? errno : EINVAL;
+        return -1;
+    }
+
+    /* One deadline for the whole call, shared across candidates, so a name
+     * with several A records cannot multiply the caller's timeout. */
+    double deadline = timeout_ms > 0 ? mono_now() + timeout_ms / 1000.0 : 0;
+
+    int saved = ECONNREFUSED;   /* if the list is somehow empty */
+    for (struct addrinfo *ai = res; ai; ai = ai->ai_next) {
+        int fd = connect_one(ai->ai_addr, ai->ai_addrlen, deadline);
+        if (fd >= 0) {
+            freeaddrinfo(res);
+            return fd;
+        }
+        saved = errno;
+        if (deadline > 0 && mono_now() >= deadline) {
+            saved = ETIMEDOUT;
+            break;
+        }
+    }
+
+    freeaddrinfo(res);
+    errno = saved;             /* the caller logs: a refusal is often expected */
+    return -1;
 }
 
 /* All five option setters share this shape, so they share one helper. */

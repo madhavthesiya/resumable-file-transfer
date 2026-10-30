@@ -4,7 +4,7 @@
 # The server is always multi-threaded, one thread per client, as Part II requires.
 #
 #   ./server <port> <topics_root_dir> <failure_probability>
-#   ./client <server_ip> <server_port> <topic> <output_dir>
+#   ./client <server_host> <server_port> <topic> <output_dir>
 #
 # The client checkpoints to <output_dir>/<topic>/.checkpoint and resumes
 # automatically after a fault; it needs no extra arguments and no manual steps.

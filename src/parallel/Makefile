@@ -5,7 +5,7 @@
 # with epoll, so the thread count never grows with K.
 #
 #   ./server <port> <topics_root_dir> <failure_probability>
-#   ./client <server_ip> <server_port> <topic> <output_dir> [K]
+#   ./client <server_host> <server_port> <topic> <output_dir> [K]
 #
 # K defaults to 4, so the four-argument client invocation works unchanged.
 #

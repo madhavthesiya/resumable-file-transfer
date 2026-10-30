@@ -7,7 +7,7 @@
 #   ./server <port> <topics_root_dir>            # multi-threaded (default)
 #   ./server <port> <topics_root_dir> single     # single-threaded
 #   ./server <port> <topics_root_dir> multi
-#   ./client <server_ip> <server_port> <topic> <output_dir>
+#   ./client <server_host> <server_port> <topic> <output_dir>
 #
 # The shared library in ../common is compiled by relative path, so this folder
 # builds as-is inside the submission tree.  COMMON_DIR can be overridden if the

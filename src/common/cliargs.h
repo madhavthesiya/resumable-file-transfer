@@ -6,7 +6,7 @@
  * The assignment fixes the mandatory positional arguments exactly:
  *
  *     ./server <port> <topics_root_dir> [<failure_probability>]
- *     ./client <server_ip> <server_port> <topic> <output_dir>
+ *     ./client <server_host> <server_port> <topic> <output_dir>
  *
  * Everything else this project exposes is an *optional trailing* argument with
  * a compiled-in default, so both mandatory forms always work unmodified.  Each

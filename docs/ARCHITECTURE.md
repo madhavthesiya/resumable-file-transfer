@@ -300,6 +300,46 @@ on every push.
 
 ---
 
+## 14. `connect()` is bounded, and resolves names
+
+Two problems, one function.
+
+**A refused connection answers instantly; a dropped one says nothing.** A host
+that sends `RST` produces `ECONNREFUSED` immediately. A host behind a firewall
+that *drops* the SYN produces no answer at all, and a blocking `connect()` then
+waits out the kernel's own retry schedule — well over two minutes on Linux. For
+a client whose entire design is "fail fast, back off, retry", being stuck there
+defeats the point. This was not hypothetical: it was found when a test that
+should have failed in milliseconds hung for six minutes.
+
+So the connect is driven non-blocking and bounded by `poll()` against an
+absolute deadline, defaulting to 10 seconds.
+
+**That also removes a subtler bug.** The original code looped on `EINTR`:
+
+```c
+while (connect(fd, ...) < 0) { if (errno == EINTR) continue; ... }
+```
+
+This looks like correct signal handling and is not. When `connect()` is
+interrupted, the attempt *continues in the kernel*; calling it again returns
+`EALREADY`, not a fresh attempt. `poll()` has no such quirk — it is simply
+re-armed against the remaining deadline, which is also why signals cannot
+extend the total wait.
+
+**And the host may be a name.** `inet_pton` was replaced with `getaddrinfo`,
+because under Docker Compose — and on any network with DNS — peers are
+addressed by name. A client that only accepts a dotted quad cannot reach
+`server:34000` at all. The deadline covers the whole call, so a name with
+several A records cannot multiply the caller's timeout.
+
+The family is pinned to `AF_INET`: `net_listen()` binds an IPv4 socket, so
+resolving AAAA records would only yield addresses this server never listens on.
+
+→ `src/common/netutil.c:137`
+
+---
+
 ## What this design does not do
 
 Stated plainly, because an interviewer will find them:
@@ -313,3 +353,6 @@ Stated plainly, because an interviewer will find them:
   found, so the reported figure is a trend, not a maximum.
 - **One network topology was measured.** Wireless, three hosts, one subnet.
   "Real network" and "wireless" cannot be separated from that data alone.
+- **IPv4 only.** The server binds `AF_INET`, and the client resolves A records
+  only. Supporting IPv6 means `getaddrinfo` on both sides and a `sockaddr_storage`
+  in the peer-formatting helper — contained, but not done.
