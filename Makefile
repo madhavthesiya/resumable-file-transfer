@@ -86,10 +86,15 @@ functional: build dataset
 	done; \
 	[ $$rc -eq 0 ] && printf '\n$(C_OK)all functional suites passed$(C_OFF)\n' || exit 1
 
+# The trailing argument is the server's fault probability, which is a required
+# positional for every implementation except baseline - without it the server
+# prints its usage and exits, and the suite reports "failed to listen".
+# A small non-zero value is deliberate: it puts the fault and resume paths
+# under the sanitizers, which is where a race would actually live.
 sanitizers: dataset
 	$(call hdr,sanitizers: ASan + UBSan + TSan)
-	@./tests/test_sanitizers.sh baseline
-	@./tests/test_sanitizers.sh resume
+	@./tests/test_sanitizers.sh baseline $(DATASET)/synthetic topic_alpha
+	@./tests/test_sanitizers.sh resume   $(DATASET)/synthetic topic_alpha 0.0005
 
 # ----------------------------------------------------------------- fuzz
 FUZZ_SECONDS ?= 30
