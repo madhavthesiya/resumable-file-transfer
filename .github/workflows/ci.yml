@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+# A push that lands while an earlier run is still going cancels it; there is no
+# value in finishing CI for a commit that has already been superseded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Warnings are errors in every Makefile already; this makes that visible here.
+  MAKEFLAGS: -j2
+
+jobs:
+  # --------------------------------------------------------------------
+  test:
+    name: build + test (${{ matrix.cc }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cc: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang
+        if: matrix.cc == 'clang'
+        run: sudo apt-get update && sudo apt-get install -y clang
+
+      # The corpus is deterministic, so caching it is safe: the generator is
+      # keyed on file paths, not on a clock or a random seed.
+      - name: Cache generated dataset
+        uses: actions/cache@v4
+        with:
+          path: .dataset
+          key: dataset-${{ hashFiles('tools/make_dataset.py') }}
+
+      - name: Build
+        run: make build CC=${{ matrix.cc }}
+
+      - name: Unit tests
+        run: make unit
+
+      - name: Functional tests
+        run: make functional
+
+  # --------------------------------------------------------------------
+  # The client is expected to build and run on macOS: MSG_NOSIGNAL is a Linux
+  # flag, and the fallback that makes the client portable is only meaningfully
+  # tested by compiling it on a BSD-derived system. The servers are Linux-only
+  # by design (epoll, eventfd), so only the clients are built here.
+  macos-client:
+    name: macOS client build
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build clients only
+        run: |
+          set -eux
+          for impl in baseline restart resume parallel; do
+            make -C "src/$impl" client
+          done
+
+      - name: Each client reports its usage
+        run: |
+          set -eu
+          for impl in baseline restart resume parallel; do
+            out=$("./src/$impl/client" 2>&1 </dev/null | head -1 || true)
+            case "$out" in
+              usage*) echo "ok   $impl" ;;
+              *) echo "FAIL $impl -> $out"; exit 1 ;;
+            esac
+          done
+
+  # --------------------------------------------------------------------
+  sanitizers:
+    name: ASan + UBSan + TSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache generated dataset
+        uses: actions/cache@v4
+        with:
+          path: .dataset
+          key: dataset-${{ hashFiles('tools/make_dataset.py') }}
+
+      - name: Unit tests under ASan + UBSan
+        run: make -C tests asan
+
+      - name: Unit tests under TSan
+        run: make -C tests tsan
+
+      - name: End-to-end under sanitizers
+        run: make sanitizers
+
+  # --------------------------------------------------------------------
+  fuzz:
+    name: protocol fuzzer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Standalone fuzzer (ASan + UBSan)
+        run: make fuzz FUZZ_SECONDS=90
+
+      # libFuzzer gives coverage guidance the standalone driver cannot. It is a
+      # separate step because it needs clang, which the main build does not.
+      - name: Install clang
+        run: sudo apt-get update && sudo apt-get install -y clang
+
+      - name: Coverage-guided fuzzing
+        run: make -C fuzz run-libfuzzer FUZZ_SECONDS=90
+
+      - name: Upload crashes
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crashes
+          path: |
+            fuzz/crash-*
+            fuzz/leak-*
+            fuzz/timeout-*
+          if-no-files-found: ignore
+
+  # --------------------------------------------------------------------
+  docker:
+    name: container + three-node smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t resumable-file-transfer:latest .
+
+      # One server, two client containers on a bridge network: the same shape
+      # as the three-machine experiment, minus the three machines.
+      - name: Three-node transfer
+        run: |
+          set -eux
+          docker compose up --abort-on-container-exit --exit-code-from client-a
+          docker compose down -v
+
+      - name: Restart vs resume under faults
+        run: |
+          set -eux
+          docker compose --profile faults up \
+            --abort-on-container-exit --exit-code-from resume-client
+          docker compose --profile faults down -v

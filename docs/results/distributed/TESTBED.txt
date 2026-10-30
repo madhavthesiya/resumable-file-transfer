@@ -1,0 +1,34 @@
+Three-machine test bed - IT305 Lab 6, Group 88 & 92 (PG10)
+Measured 2026-10-23.
+
+Topology
+  server  : MADHAV            10.110.170.129   Linux 6.6.87 (WSL2, Ubuntu 24.04)
+                              Intel Core Ultra 5 125H, 18 logical cores
+  client  : Bhanderis-Laptop  10.110.170.122   Darwin (macOS), Apple MacBook
+  client  : Meets-MacBook-Air 10.110.170.155   Darwin (macOS), Apple MacBook Air
+
+  Link    : 802.11 wireless, all three hosts on one phone hotspot, same /24.
+            Peak aggregate rate observed across every run: 178 Mbit/s.
+
+Why a hotspot: the campus wireless network has client isolation enabled, so
+devices on it cannot address one another. The hotspot provides an ordinary
+private subnet.
+
+What was measured
+  d1  Part I, threading mode x {1,2,4,8} clients, 5 repeats   = 40 runs
+  d2  Case 2 Enhanced, K in {1,2,4,8}, 1 client, 3 repeats    = 12 runs
+                                                         total  52 runs
+
+Controls
+  - Page cache warmed once before any timed run.
+  - Part I interleaves single/multi within each repeat, so drifting wireless
+    conditions affect both modes equally.
+  - Clients dealt alternately to the two client machines.
+  - Fault injection disabled (p=0) throughout; this is a throughput study.
+
+Integrity
+  52/52 runs reached status=ok with crc_fail=0.
+  server_runs.csv records one row per client connection; its peer field shows
+  162 connections arriving from exactly two distinct addresses,
+  10.110.170.122 and 10.110.170.155, which is the evidence that the server and
+  the clients ran on three separate machines.

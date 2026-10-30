@@ -1,0 +1,7 @@
+name,roll,lab_group,contribution
+Meet Virugama,202401243,88,"Part I server in both single- and multi-threaded modes; the shared topic table and start-up file/CRC caching in common/."
+Madhav Thesiya,202401226,88,"Group lead: overall architecture and wire-protocol design, integration across all four cases, the measurement harness and this report."
+Krish Vamja,202401239,88,"Part II Case 1: server-side fault injection, the reconnecting client with bounded backoff, and the useful/redundant byte accounting."
+Pritkumar Zania,202401495,92,"Part II Case 2 server side: the session table, resume validation, and the min(client, sent) clamp that bounds retransmission."
+Om Sutariya,202401438,92,"Part II Case 2 client side: atomic checkpoint persistence, the resume path, and CRC-32 reconstruction across a resume."
+Shlok Ukani,202401204,92,"Case 2 Enhanced: K-way work partitioning, the epoll connection hand-off keeping one thread per client, and the test and sanitizer suites."

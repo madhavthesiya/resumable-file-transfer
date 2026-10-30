@@ -1,0 +1,147 @@
+# A three-node deployment on one machine: one server container, two client
+# containers on a shared bridge network. This exists because the project's
+# central finding is that loopback measurements mislead, and asking a reader
+# to find three laptops before they can try it is a good way to be ignored.
+#
+#   docker compose up --build          baseline, two clients each fetching
+#   docker compose --profile faults up restart vs resume under fault injection
+#   docker compose --profile parallel up   K parallel connections
+#
+# Containers on a bridge network still share a kernel, so these numbers are
+# closer to loopback than to a real link. See docs/BENCHMARKS.md for the
+# three-environment comparison that makes that distinction the point.
+
+name: resumable-file-transfer
+
+x-common: &common
+  build:
+    context: .
+  image: resumable-file-transfer:latest
+  networks: [transfer]
+
+services:
+  # -------------------------------------------------------------- baseline
+  server:
+    <<: *common
+    container_name: tt-server
+    hostname: server
+    environment:
+      IMPL: baseline
+      MODE: ${MODE:-multi}        # override: MODE=single docker compose up
+      PORT: 34000
+    command: ["server"]
+    healthcheck:
+      test: ["CMD-SHELL", "ss -ltn | grep -q :34000"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  client-a:
+    <<: *common
+    container_name: tt-client-a
+    depends_on:
+      server: {condition: service_healthy}
+    environment:
+      IMPL: baseline
+      SERVER: server
+      PORT: 34000
+      TOPIC: ${TOPIC:-images}
+      CLIENTS: ${CLIENTS:-2}
+    command: ["client"]
+
+  client-b:
+    <<: *common
+    container_name: tt-client-b
+    depends_on:
+      server: {condition: service_healthy}
+    environment:
+      IMPL: baseline
+      SERVER: server
+      PORT: 34000
+      TOPIC: ${TOPIC:-images}
+      CLIENTS: ${CLIENTS:-2}
+    command: ["client"]
+
+  # ------------------------------------------------- restart vs resume
+  # Same fault rate, same topic. The interesting column in the client output
+  # is redundant_bytes: restart re-sends, resume does not.
+  restart-server:
+    <<: *common
+    profiles: [faults]
+    hostname: restart-server
+    environment: {IMPL: restart, PORT: 34010, PROB: "${PROB:-0.001}"}
+    command: ["server"]
+    healthcheck:
+      test: ["CMD-SHELL", "ss -ltn | grep -q :34010"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  restart-client:
+    <<: *common
+    profiles: [faults]
+    depends_on:
+      restart-server: {condition: service_healthy}
+    environment:
+      IMPL: restart
+      SERVER: restart-server
+      PORT: 34010
+      TOPIC: ${TOPIC:-images}
+      CLIENTS: 1
+    command: ["client"]
+
+  resume-server:
+    <<: *common
+    profiles: [faults]
+    hostname: resume-server
+    environment: {IMPL: resume, PORT: 34020, PROB: "${PROB:-0.001}"}
+    command: ["server"]
+    healthcheck:
+      test: ["CMD-SHELL", "ss -ltn | grep -q :34020"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  resume-client:
+    <<: *common
+    profiles: [faults]
+    depends_on:
+      resume-server: {condition: service_healthy}
+    environment:
+      IMPL: resume
+      SERVER: resume-server
+      PORT: 34020
+      TOPIC: ${TOPIC:-images}
+      CLIENTS: 1
+    command: ["client"]
+
+  # ------------------------------------------------------------- parallel
+  parallel-server:
+    <<: *common
+    profiles: [parallel]
+    hostname: parallel-server
+    environment: {IMPL: parallel, PORT: 34030, PROB: "${PROB:-0}"}
+    command: ["server"]
+    healthcheck:
+      test: ["CMD-SHELL", "ss -ltn | grep -q :34030"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+  parallel-client:
+    <<: *common
+    profiles: [parallel]
+    depends_on:
+      parallel-server: {condition: service_healthy}
+    environment:
+      IMPL: parallel
+      SERVER: parallel-server
+      PORT: 34030
+      TOPIC: ${TOPIC:-archives}   # large files, so ranges actually split
+      CONNS: ${CONNS:-8}
+      CLIENTS: 1
+    command: ["client"]
+
+networks:
+  transfer:
+    driver: bridge

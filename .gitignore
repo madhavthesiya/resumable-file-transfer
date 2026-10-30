@@ -1,0 +1,36 @@
+# Build output. `make` drops the two executables beside their sources, which
+# keeps each implementation runnable from its own directory the way the
+# original assignment required.
+src/*/server
+src/*/client
+src/*/build/
+*.o
+*.d
+
+# Generated corpora and scratch space. Both are reproducible:
+#   make dataset   regenerates .dataset/
+#   make test      recreates .work/
+.dataset/
+.work/
+
+# Test and fuzz artefacts
+tests/test_common
+tests/test_common_asan
+tests/test_common_tsan
+fuzz/fuzz_protocol
+fuzz/fuzz_protocol_lf
+fuzz/corpus/
+fuzz/crash-*
+fuzz/leak-*
+fuzz/timeout-*
+
+# Benchmark output goes to docs/results/ only when deliberately published.
+bench/out/
+*.log
+
+# Editors and platforms
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
