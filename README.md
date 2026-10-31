@@ -28,6 +28,8 @@ tripled another.
 | Thread per client | **3.18×** | **1.21×** | overstated 2.6× |
 | 8 parallel connections | **1.72×** | **5.33×** | understated 3.1× |
 
+![Multi-threading advantage: loopback vs a real network](docs/results/baseline_loopback_vs_3machine_advantage.svg)
+
 Both numbers come from the same binaries and the same workload. Only the
 bottleneck changed. Loopback has no propagation delay, so it flatters anything
 that hides CPU work and penalises anything that exists to hide latency —
@@ -84,7 +86,11 @@ generated, not vendored.
 make demo-dataset
 ./src/baseline/server 34000 .dataset/demo multi &
 ./src/baseline/client 127.0.0.1 34000 images /tmp/out
+kill %1                                # stop the backgrounded server
 ```
+
+The client prints a `RESULT` line with bytes moved, elapsed time, throughput and
+`crc_fail=0`. The host may be a DNS name as well as an address.
 
 **Three nodes without three machines:**
 
@@ -132,8 +138,15 @@ docker compose --profile faults up     # restart vs resume, side by side
 
 ### The four implementations
 
-Each is the previous one plus exactly one idea, which is why
-`diff src/baseline/server.c src/restart/server.c` is short and readable.
+Each adds one idea to the one before it. They are separate programs rather than
+one binary behind flags, so each reads start to finish without tracing
+conditionals, and no benchmark comparison shares a code path that a flag might
+skip.
+
+How much that costs in code is itself a result: adding fault handling to the
+533-line baseline server changed 343 of its lines, because the fault path has
+to thread through every send and every partial write. **Resumability is not a
+feature you bolt on.**
 
 | Directory | Adds | Behaviour on a broken connection |
 |---|---|---|
@@ -200,6 +213,24 @@ make fuzz FUZZ_SECONDS=60
 
 ---
 
+## Known limitations
+
+Stated here rather than left to be discovered:
+
+- **Sessions live in memory.** A server restart loses them; the client's resume
+  is then refused and it starts a fresh session. Persisting them needs a
+  disk-backed store with its own durability story.
+- **No authentication or encryption.** CRC-32 detects accidental corruption, not
+  tampering — it is trivially forgeable. [docs/SECURITY.md](docs/SECURITY.md)
+  has the threat model and where TLS would attach.
+- **IPv4 only.** The server binds `AF_INET`; the client resolves A records only.
+- **The parallel speedup had not plateaued at K = 8**, so that figure is a trend
+  rather than a maximum.
+- **One network topology was measured.** Wireless, three hosts, one subnet —
+  so "real network" and "wireless" cannot be separated from this data alone.
+
+---
+
 ## Repository layout
 
 ```
@@ -224,7 +255,7 @@ docs/            protocol spec, architecture, benchmarks, findings, security
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | design decisions and the alternatives rejected |
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | wire format, message catalogue, state machine |
 | [docs/BENCHMARKS.md](docs/BENCHMARKS.md) | method, all results, the crossover derivation |
-| [docs/FINDINGS.md](docs/FINDINGS.md) | three ways the benchmark lied, and how each was caught |
+| [docs/FINDINGS.md](docs/FINDINGS.md) | four ways the measurements lied, and how each was caught |
 | [docs/SECURITY.md](docs/SECURITY.md) | threat model, what is and is not defended, TLS design |
 
 ---

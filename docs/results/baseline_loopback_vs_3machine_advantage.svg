@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="440" viewBox="0 0 760 440" font-family="DejaVu Sans, Helvetica, Arial, sans-serif">
+<rect width="760" height="440" fill="#ffffff"/>
+<text x="44" y="26" font-size="16" font-weight="600" fill="#111827">Multi-threading advantage: loopback vs a real network</text>
+<text x="44" y="44" font-size="11.5" fill="#6b7280">aggregate rate of the multi-threaded server divided by the single-threaded one; 1.0 means no advantage</text>
+<line x1="92.0" y1="364.0" x2="732.0" y2="364.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="83.0" y="368.0" font-size="11" fill="#4b5563" text-anchor="end">0</text>
+<line x1="92.0" y1="286.5" x2="732.0" y2="286.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="83.0" y="290.5" font-size="11" fill="#4b5563" text-anchor="end">1.0</text>
+<line x1="92.0" y1="209.0" x2="732.0" y2="209.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="83.0" y="213.0" font-size="11" fill="#4b5563" text-anchor="end">2.0</text>
+<line x1="92.0" y1="131.5" x2="732.0" y2="131.5" stroke="#e5e7eb" stroke-width="1"/>
+<text x="83.0" y="135.5" font-size="11" fill="#4b5563" text-anchor="end">3.0</text>
+<line x1="92.0" y1="54.0" x2="732.0" y2="54.0" stroke="#e5e7eb" stroke-width="1"/>
+<text x="83.0" y="58.0" font-size="11" fill="#4b5563" text-anchor="end">4.0</text>
+<text x="172.0" y="384" font-size="11" fill="#4b5563" text-anchor="middle">1</text>
+<text x="332.0" y="384" font-size="11" fill="#4b5563" text-anchor="middle">2</text>
+<text x="492.0" y="384" font-size="11" fill="#4b5563" text-anchor="middle">4</text>
+<text x="652.0" y="384" font-size="11" fill="#4b5563" text-anchor="middle">8</text>
+<line x1="92" y1="364" x2="732" y2="364" stroke="#374151" stroke-width="1.4"/>
+<line x1="92" y1="40" x2="92" y2="364" stroke="#374151" stroke-width="1.4"/>
+<rect x="112.8" y="203.6" width="54.5" height="160.4" fill="#1f5fbf" rx="1.5"/>
+<rect x="272.8" y="218.2" width="54.5" height="145.8" fill="#1f5fbf" rx="1.5"/>
+<rect x="432.8" y="73.1" width="54.5" height="290.9" fill="#1f5fbf" rx="1.5"/>
+<rect x="592.8" y="117.3" width="54.5" height="246.7" fill="#1f5fbf" rx="1.5"/>
+<rect x="172.0" y="268.7" width="54.5" height="95.3" fill="#d1600f" rx="1.5"/>
+<rect x="332.0" y="279.5" width="54.5" height="84.5" fill="#d1600f" rx="1.5"/>
+<rect x="492.0" y="266.3" width="54.5" height="97.7" fill="#d1600f" rx="1.5"/>
+<rect x="652.0" y="270.0" width="54.5" height="94.0" fill="#d1600f" rx="1.5"/>
+<text x="412.0" y="410" font-size="12" fill="#374151" text-anchor="middle">concurrent clients</text>
+<text x="18" y="209.0" font-size="12" fill="#374151" text-anchor="middle" transform="rotate(-90 18 209.0)">multi / single</text>
+<rect x="92.0" y="427" width="22" height="9" rx="2" fill="#1f5fbf"/>
+<text x="119.0" y="435" font-size="11" fill="#374151">loopback (one host)</text>
+<rect x="259.0" y="427" width="22" height="9" rx="2" fill="#d1600f"/>
+<text x="286.0" y="435" font-size="11" fill="#374151">three machines (802.11)</text>
+</svg>

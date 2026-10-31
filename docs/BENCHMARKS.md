@@ -64,6 +64,12 @@ Speedup at 8 clients: **3.18×**
 it directly into throughput. On a real link one thread already saturates the
 medium, so the remaining headroom is small. The benefit was overstated **2.6×**.
 
+![Threading advantage, loopback vs three machines](results/baseline_loopback_vs_3machine_advantage.svg)
+
+![Aggregate throughput vs client count, loopback](results/baseline_throughput.svg)
+
+![Aggregate throughput vs client count, three machines](results/baseline_3machine_throughput.svg)
+
 ---
 
 ## 2. Restart vs resume across the fault rate
@@ -102,6 +108,10 @@ and the time goes up **7.7×** (6.73 → 52.01 s). And the deviation at p = 0.00
 is 84% of the mean: restart is not merely slow, it is unpredictable, because
 completion depends on the worst luck in the whole run rather than the average.
 
+![Redundant bytes re-sent, restart vs resume](results/restart_vs_resume_redundant.svg)
+
+![Throughput under fault injection, restart vs resume](results/restart_vs_resume_throughput.svg)
+
 ---
 
 ## 3. The crossover, derived and then measured
@@ -119,6 +129,8 @@ Resume is not free. On an identical workload with **no faults**:
 *(This experiment exists so the comparison is like-for-like: the other tables
 each use whichever topic suits what they measure, so their p = 0 rows sit on
 different workloads and cannot be divided by one another.)*
+
+![Fault-free throughput, all four implementations](results/faultfree_comparison_throughput.svg)
 
 Resume costs **6.4×** in clean throughput — per-chunk acknowledgements cost a
 round trip, checkpoints cost fsync'd disk writes.
@@ -188,6 +200,8 @@ contend for the same CPU and pay coordination overhead for nothing.
 **1.72× → 5.33×, and still climbing at K=8.** A single TCP stream leaves the
 link idle while it waits for acknowledgements; K streams fill those gaps. The
 ceiling was never found, so this is a trend, not a maximum.
+
+![Parallel-connection speedup on three machines](results/parallel_3machine_speedup.svg)
 
 ### Under faults
 
